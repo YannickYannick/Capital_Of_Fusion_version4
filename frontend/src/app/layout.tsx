@@ -1,0 +1,27 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+
+const inter = Inter({
+    subsets: ["latin"],
+    variable: "--font-inter",
+});
+
+export const metadata: Metadata = {
+    title: "BachataVibe V4",
+    description: "Plateforme de danse Bachata - Capital of Fusion France",
+};
+
+export default function RootLayout({
+    children,
+}: Readonly<{
+    children: React.Node;
+}>) {
+    return (
+        <html lang="fr" className={inter.variable}>
+            <body>
+                {children}
+            </body>
+        </html>
+    );
+}
