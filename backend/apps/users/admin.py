@@ -2,10 +2,9 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import User
 
-
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    """Admin configuration for custom User model."""
+    """Admin configuration for enhanced custom User model."""
     
     list_display = ['username', 'email', 'first_name', 'last_name', 'dance_level', 'is_staff']
     list_filter = ['is_staff', 'is_superuser', 'is_active', 'dance_level']
@@ -13,12 +12,8 @@ class UserAdmin(BaseUserAdmin):
     
     fieldsets = BaseUserAdmin.fieldsets + (
         ('Dance Profile', {
-            'fields': ('phone', 'bio', 'profile_picture', 'dance_level', 'preferred_styles')
+            'fields': ('phone', 'bio', 'profile_picture', 'dance_level', 'dance_styles', 'dance_professions')
         }),
     )
     
-    add_fieldsets = BaseUserAdmin.add_fieldsets + (
-        ('Dance Profile', {
-            'fields': ('phone', 'bio', 'dance_level')
-        }),
-    )
+    filter_horizontal = ('dance_styles', 'dance_professions', 'groups', 'user_permissions')

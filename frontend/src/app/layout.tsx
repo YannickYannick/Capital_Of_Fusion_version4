@@ -12,6 +12,8 @@ export const metadata: Metadata = {
     description: "Plateforme de danse Bachata - Capital of Fusion France",
 };
 
+import Providers from "@/components/shared/Providers";
+
 export default function RootLayout({
     children,
 }: Readonly<{
@@ -19,8 +21,8 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="fr" className={inter.variable}>
-            <body>
-                {children}
+            <body className="antialiased font-sans">
+                <Providers>{children}</Providers>
             </body>
         </html>
     );
