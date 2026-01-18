@@ -50,7 +50,7 @@ export default function Scene3DAdvanced({ onRefsReady }: Scene3DAdvancedProps = 
     const animationFrameRef = useRef<number>();
     const selectedObjectRef = useRef<THREE.Object3D | null>(null);
 
-    const { showOrbits, planetSpeed, freezePlanets, releaseFocus } = usePlanetsOptions();
+    const { showOrbits, planetSpeed, freezePlanets, setFreezePlanets, releaseFocus } = usePlanetsOptions();
 
     // Use Ref to avoid stale closures in animation loop
     const freezePlanetsRef = useRef(freezePlanets);
