@@ -34,9 +34,10 @@ interface Scene3DAdvancedProps {
         cameraRef: React.RefObject<THREE.PerspectiveCamera | null>,
         controlsRef: React.RefObject<OrbitControls | null>
     ) => void;
+    onPlanetDoubleClick?: (nodeId: number) => void;
 }
 
-export default function Scene3DAdvanced({ onRefsReady }: Scene3DAdvancedProps = {}) {
+export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Scene3DAdvancedProps = {}) {
     const containerRef = useRef<HTMLDivElement>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -590,6 +591,11 @@ export default function Scene3DAdvanced({ onRefsReady }: Scene3DAdvancedProps = 
             });
         }
 
+        // Click tracking for double-click detection
+        let lastClickedPlanetId: string | null = null;
+        let lastClickTime = 0;
+        const DOUBLE_CLICK_THRESHOLD = 500; // ms
+
         const handleClick = (e: MouseEvent) => {
             // Freeze planets on first click
             if (!freezePlanetsRef.current) {
@@ -600,10 +606,36 @@ export default function Scene3DAdvanced({ onRefsReady }: Scene3DAdvancedProps = 
             raycaster.setFromCamera(mouse, camera);
             const objects = Array.from(meshRegistryRef.current.values());
             const hits = raycaster.intersectObjects(objects, true);
+
             if (hits.length) {
                 let obj = hits[0].object;
                 while (obj && !meshRegistryRef.current.has(obj.name) && obj.parent) obj = obj.parent;
-                if (obj) focusOnObject(obj);
+
+                if (obj) {
+                    const planetId = obj.name;
+                    const now = Date.now();
+
+                    // Check if this is a second click on the same planet within threshold
+                    if (planetId === lastClickedPlanetId && (now - lastClickTime) < DOUBLE_CLICK_THRESHOLD) {
+                        // Second click → Open detail panel
+                        const nodeData = orgNodes?.find((n: any) => n.id.toString() === planetId);
+                        if (nodeData && onPlanetDoubleClick) {
+                            onPlanetDoubleClick(nodeData.id);
+                        }
+                        // Reset tracking
+                        lastClickedPlanetId = null;
+                        lastClickTime = 0;
+                    } else {
+                        // First click → Focus camera
+                        focusOnObject(obj);
+                        lastClickedPlanetId = planetId;
+                        lastClickTime = now;
+                    }
+                }
+            } else {
+                // Click on empty space → Reset tracking
+                lastClickedPlanetId = null;
+                lastClickTime = 0;
             }
         };
 

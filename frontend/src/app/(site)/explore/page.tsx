@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef } from "react";
 import dynamic from "next/dynamic";
-// import Scene3DAdvanced from "@/components/features/explore/Scene3DAdvanced";
-import VideoBackground from "@/components/features/landing/VideoBackground";
 import DebugCoordinates from "@/components/features/explore/DebugCoordinates";
+import PlanetDetailPanel from "@/components/features/explore/PlanetDetailPanel";
 
 const Scene3DAdvanced = dynamic(() => import("@/components/features/explore/Scene3DAdvanced"), {
     ssr: false,
@@ -18,33 +17,30 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 
 export default function ExplorePage() {
-    // ... logic ...
+    // Panel state
+    const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
 
-    // Fetch site configuration for video
-    const { data: siteConfig } = useQuery({
-        queryKey: ['site-config'],
+    // Fetch selected node details
+    const { data: selectedNodeData, isLoading: isLoadingNode } = useQuery({
+        queryKey: ['organization-node', selectedNodeId],
         queryFn: async () => {
-            const res = await api.get('/common/config/');
+            if (!selectedNodeId) return null;
+            const res = await api.get(`/organization/nodes/${selectedNodeId}/`);
             return res.data;
         },
-        staleTime: 1000 * 60 * 60, // 1 hour
+        enabled: !!selectedNodeId && isPanelOpen,
     });
 
-    // Extract Video ID
-    const videoId = useMemo(() => {
-        if (!siteConfig?.hero_video_url) return "jfKfPfyJRdk"; // Default fallback (Lofi)
-        try {
-            const url = new URL(siteConfig.hero_video_url);
-            if (url.hostname.includes('youtube.com')) {
-                return url.searchParams.get('v') || "jfKfPfyJRdk";
-            } else if (url.hostname.includes('youtu.be')) {
-                return url.pathname.slice(1) || "jfKfPfyJRdk";
-            }
-            return "jfKfPfyJRdk";
-        } catch (e) {
-            return "jfKfPfyJRdk";
-        }
-    }, [siteConfig]);
+    const handlePlanetDoubleClick = (nodeId: number) => {
+        setSelectedNodeId(nodeId);
+        setIsPanelOpen(true);
+    };
+
+    const handlePanelClose = () => {
+        setIsPanelOpen(false);
+        // Keep selectedNodeId for potential re-opening
+    };
 
     const {
         showOrbits,
@@ -76,12 +72,10 @@ export default function ExplorePage() {
     return (
         <main className="relative h-screen w-full overflow-hidden">
             {/* 3D Scene */}
-            <VideoBackground
-                videoId={videoId}
-                isGrayscale={grayscaleVideo}
-                enableCycle={enableVideoCycle}
+            <Scene3DAdvanced
+                onRefsReady={handleRefsReady}
+                onPlanetDoubleClick={handlePlanetDoubleClick}
             />
-            <Scene3DAdvanced onRefsReady={handleRefsReady} />
 
             {/* Debug Coordinates */}
             {showDebugInfo && (
@@ -148,6 +142,14 @@ export default function ExplorePage() {
                     <span>{showDebugInfo ? 'Masquer' : 'Afficher'} contrôles</span>
                 </button>
             </div>
+
+            {/* Planet Detail Panel */}
+            <PlanetDetailPanel
+                isOpen={isPanelOpen}
+                onClose={handlePanelClose}
+                nodeData={selectedNodeData}
+                isLoading={isLoadingNode}
+            />
         </main>
     );
 }

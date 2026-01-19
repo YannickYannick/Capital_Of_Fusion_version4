@@ -1,30 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import VideoBackground from "@/components/features/landing/VideoBackground";
 import { ArrowRight, Play } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
 
 export default function HomePage() {
-    // Reuse the same video config logic as ExplorePage
-    const { data: siteConfig } = useQuery({
-        queryKey: ['siteConfig'],
-        queryFn: async () => {
-            const res = await api.get('/common/config/');
-            return res.data;
-        }
-    });
-
-    const videoId = siteConfig?.hero_video_url ?
-        (siteConfig.hero_video_url.includes('v=') ? siteConfig.hero_video_url.split('v=')[1] : "jfKfPfyJRdk")
-        : "jfKfPfyJRdk";
-
     return (
         <main className="relative min-h-screen flex items-center justify-center overflow-hidden">
-            {/* Background */}
-            <VideoBackground videoId={videoId} />
-
             {/* Overlay */}
             <div className="absolute inset-0 bg-black/40 z-10" />
 
