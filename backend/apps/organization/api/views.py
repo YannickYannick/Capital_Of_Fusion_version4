@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from apps.organization.models import OrganizationNode, OrganizationRole
 from .serializers import OrganizationNodeSerializer, OrganizationRoleSerializer
 
-class OrganizationNodeViewSet(viewsets.ReadOnlyModelViewSet):
+class OrganizationNodeViewSet(viewsets.ModelViewSet):
     queryset = OrganizationNode.objects.filter(parent=None)
     serializer_class = OrganizationNodeSerializer
     permission_classes = [permissions.AllowAny]

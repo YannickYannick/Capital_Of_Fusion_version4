@@ -16,6 +16,7 @@ interface OrgNode {
     slug: string;
     type: 'ROOT' | 'BRANCH' | 'EVENT';
     parent_id: string | null;
+    orbit_radius?: number;
 }
 
 export default function PlanetarySystem() {
@@ -73,10 +74,12 @@ export default function PlanetarySystem() {
                         <Planet
                             key={item.id}
                             name={item.name}
-                            orbitRadius={10 + index * 5} // Staggered orbits
+                            orbitRadius={item.orbit_radius || (10 + index * 5)} // Use DB value if matches, else fallback
                             orbitSpeed={0.2 - index * 0.05}
                             color={index % 2 === 0 ? "#3b82f6" : "#10b981"}
                             size={1.2 - index * 0.1}
+                            index={index}
+                            startX={-40}
                             onClick={() => setSelectedNode(item)}
                         />
                     ))}

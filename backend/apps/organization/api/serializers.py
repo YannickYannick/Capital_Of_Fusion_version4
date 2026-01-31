@@ -11,7 +11,9 @@ class OrganizationNodeSerializer(serializers.ModelSerializer):
             # 3D Configuration
             'visual_source', 'planet_type', 'model_3d', 'planet_texture', 
             'planet_color', 'orbit_radius', 'orbit_speed',
-            'planet_scale', 'rotation_speed', 'orbit_phase', 'is_visible_3d',
+            'planet_scale', 'rotation_speed', 'orbit_phase', 
+            'orbit_shape', 'orbit_roundness',
+            'is_visible_3d',
             'created_at', 'updated_at'
         ]
 

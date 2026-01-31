@@ -89,6 +89,23 @@ class OrganizationNode(BaseModel):
         default=0.0,
         help_text="Position initiale sur l'orbite (en radians)"
     )
+    
+    ORBIT_SHAPES = (
+        ('circle', 'Circulaire'),
+        ('squircle', 'Squircle (Carré arrondi)'),
+    )
+    
+    orbit_shape = models.CharField(
+        max_length=10,
+        choices=ORBIT_SHAPES,
+        default='circle',
+        help_text="Forme de l'orbite"
+    )
+    
+    orbit_roundness = models.FloatField(
+        default=0.6,
+        help_text="Pour Squircle : 0 = carré, 1 = cercle"
+    )
     is_visible_3d = models.BooleanField(
         default=True,
         help_text="Afficher cette planète dans la scène 3D"
