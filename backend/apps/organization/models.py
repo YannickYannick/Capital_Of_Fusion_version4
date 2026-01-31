@@ -20,6 +20,39 @@ class OrganizationNode(BaseModel):
     video_url = models.URLField(blank=True) # For the popup
     description = models.TextField(blank=True)
     
+    # Champs pour l'overlay central
+    cover_image = models.ImageField(
+        upload_to='nodes/covers/',
+        blank=True,
+        null=True,
+        verbose_name="Image de couverture",
+        help_text="Image principale affichée dans l'overlay (format 16:9 recommandé)"
+    )
+    short_description = models.CharField(
+        max_length=300,
+        blank=True,
+        verbose_name="Accroche courte",
+        help_text="Description courte affichée sous le titre (max 300 caractères)"
+    )
+    content = models.TextField(
+        blank=True,
+        verbose_name="Contenu détaillé",
+        help_text="Contenu riche affiché dans l'overlay (supporte le markdown)"
+    )
+    cta_text = models.CharField(
+        max_length=50,
+        blank=True,
+        default="En savoir plus",
+        verbose_name="Texte du bouton CTA",
+        help_text="Texte du bouton d'action principal"
+    )
+    cta_url = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="URL du bouton CTA",
+        help_text="Lien vers la page de destination (ex: /cours)"
+    )
+    
     # Configuration 3D pour la visualisation planétaire
     VISUAL_SOURCES = (
         ('preset', 'Préglage (Planet Type)'),
@@ -158,3 +191,61 @@ class UserOrganizationRole(BaseModel):
     class Meta:
         verbose_name = "Rôle d'utilisateur"
         unique_together = ('user', 'node', 'role')
+
+
+class NodeEvent(BaseModel):
+    """
+    Événement associé à un noeud d'organisation.
+    Utilisé pour afficher le planning dans l'overlay de la planète.
+    """
+    node = models.ForeignKey(
+        OrganizationNode,
+        on_delete=models.CASCADE,
+        related_name='node_events',
+        verbose_name="Noeud"
+    )
+    title = models.CharField(
+        max_length=200,
+        verbose_name="Titre"
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name="Description"
+    )
+    start_datetime = models.DateTimeField(
+        verbose_name="Date et heure de début"
+    )
+    end_datetime = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Date et heure de fin"
+    )
+    location = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Lieu"
+    )
+    image = models.ImageField(
+        upload_to='events/',
+        blank=True,
+        null=True,
+        verbose_name="Image"
+    )
+    is_featured = models.BooleanField(
+        default=False,
+        verbose_name="Mis en avant",
+        help_text="Afficher cet événement en priorité"
+    )
+    external_url = models.URLField(
+        blank=True,
+        verbose_name="Lien externe",
+        help_text="Lien vers une page externe (billetterie, inscription, etc.)"
+    )
+
+    class Meta:
+        verbose_name = "Événement"
+        verbose_name_plural = "Événements"
+        ordering = ['start_datetime']
+
+    def __str__(self):
+        return f"{self.title} - {self.node.name}"

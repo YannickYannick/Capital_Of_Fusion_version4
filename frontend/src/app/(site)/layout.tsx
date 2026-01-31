@@ -1,55 +1,35 @@
 "use client";
 
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Navbar from "@/components/shared/Navbar/Navbar";
-import VideoBackground from "@/components/features/landing/VideoBackground";
+import SecondaryVideoOverlay from "@/components/features/landing/SecondaryVideoOverlay";
 import { usePlanetsOptions } from "@/contexts/PlanetsOptionsContext";
-import api from "@/lib/api";
+import { useVideoBackground } from "@/contexts/VideoBackgroundContext";
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const isExplorePage = pathname === '/explore';
 
-    // Fetch site config for video
-    const { data: siteConfig } = useQuery({
-        queryKey: ['siteConfig'],
-        queryFn: async () => {
-            const res = await api.get('/common/config/');
-            return res.data;
-        }
-    });
+    // Get video options from contexts
+    const { grayscaleVideo } = usePlanetsOptions();
+    const { setOverlayOpacity, setIsGrayscale } = useVideoBackground();
 
-    const videoId = useMemo(() => {
-        if (!siteConfig?.hero_video_url) return "jfKfPfyJRdk";
-        try {
-            const url = new URL(siteConfig.hero_video_url);
-            if (url.hostname.includes('youtube.com')) {
-                return url.searchParams.get('v') || "jfKfPfyJRdk";
-            } else if (url.hostname.includes('youtu.be')) {
-                return url.pathname.slice(1) || "jfKfPfyJRdk";
-            }
-            return "jfKfPfyJRdk";
-        } catch (e) {
-            return "jfKfPfyJRdk";
-        }
-    }, [siteConfig]);
+    // Update persistent video overlay opacity based on current page
+    useEffect(() => {
+        setOverlayOpacity(isExplorePage ? 0.05 : 0.3);
+    }, [isExplorePage, setOverlayOpacity]);
 
-    // Get video options from context
-    const { enableVideoCycle, grayscaleVideo } = usePlanetsOptions();
+    // Update grayscale based on settings
+    useEffect(() => {
+        setIsGrayscale(grayscaleVideo);
+    }, [grayscaleVideo, setIsGrayscale]);
 
     return (
         <div className="relative min-h-screen">
-            {/* Local MP4 Video Background */}
-            {/* Use Aftermoovie_vibe.mp4 on all pages, with different overlay opacity */}
-            <VideoBackground
-                videoId={videoId}
-                videoSrc="/Aftermoovie_vibe.mp4"
-                overlayOpacity={isExplorePage ? 0.05 : 0.3}
-                enableCycle={enableVideoCycle}
-                isGrayscale={grayscaleVideo}
-            />
+            {/* Secondary video overlay - only on /explore page */}
+            {/* This adds background-video.mp4 underneath the persistent Aftermoovie_vibe.mp4 */}
+            {isExplorePage && <SecondaryVideoOverlay />}
 
             {/* Content container with relative positioning to be above video */}
             <div className="relative z-10">

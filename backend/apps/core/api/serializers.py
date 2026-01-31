@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.core.models import DanceStyle, Level, DanceProfession, SiteConfiguration
+from apps.core.models import DanceStyle, Level, DanceProfession, SiteConfiguration, MenuItem
 
 class DanceStyleSerializer(serializers.ModelSerializer):
     sub_styles = serializers.SerializerMethodField()
@@ -38,3 +38,22 @@ class SiteConfigurationSerializer(serializers.ModelSerializer):
         elif 'youtu.be/' in url:
             return url.split('youtu.be/')[1].split('?')[0]
         return None
+
+
+class MenuItemSerializer(serializers.ModelSerializer):
+    """
+    Serializer for MenuItem with recursive children serialization.
+    Only returns active items, ordered by the 'order' field.
+    """
+    children = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = MenuItem
+        fields = ['id', 'name', 'slug', 'url', 'icon', 'order', 'is_active', 'children']
+    
+    def get_children(self, obj):
+        """Recursively serialize active children items"""
+        children = obj.children.filter(is_active=True).order_by('order', 'name')
+        if children.exists():
+            return MenuItemSerializer(children, many=True).data
+        return []

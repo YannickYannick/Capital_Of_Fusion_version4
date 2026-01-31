@@ -1,5 +1,10 @@
 import * as THREE from 'three';
 
+// Base scale for labels (used for distance-based scaling)
+const BASE_LABEL_SCALE = { width: 4, height: 1 };
+// Reference distance at which the label has its base size
+const REFERENCE_DISTANCE = 15;
+
 /**
  * Create a 3D label sprite that always faces the camera
  * @param name - Text to display on the label
@@ -49,7 +54,7 @@ export function createPlanetLabel(name: string, scene: THREE.Scene): THREE.Sprit
 
     // Create sprite
     const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.scale.set(4, 1, 1); // Width, height, depth
+    sprite.scale.set(BASE_LABEL_SCALE.width, BASE_LABEL_SCALE.height, 1);
 
     scene.add(sprite);
     return sprite;
@@ -68,6 +73,30 @@ export function updateLabelPosition(
 ): void {
     label.position.copy(planetPosition);
     label.position.y += offset;
+}
+
+/**
+ * Update label scale to maintain constant screen size regardless of distance
+ * @param label - Sprite to update
+ * @param camera - Three.js camera
+ */
+export function updateLabelScale(
+    label: THREE.Sprite,
+    camera: THREE.Camera
+): void {
+    // Calculate distance from camera to label
+    const distance = camera.position.distanceTo(label.position);
+    
+    // Scale factor to maintain constant screen size
+    // The further away, the larger the scale needs to be
+    const scaleFactor = distance / REFERENCE_DISTANCE;
+    
+    // Apply scale while maintaining aspect ratio
+    label.scale.set(
+        BASE_LABEL_SCALE.width * scaleFactor,
+        BASE_LABEL_SCALE.height * scaleFactor,
+        1
+    );
 }
 
 /**

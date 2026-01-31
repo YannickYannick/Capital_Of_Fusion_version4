@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePlanetsOptions } from "@/contexts/PlanetsOptionsContext";
 
 interface DebugCoordinatesProps {
     sceneRef: React.RefObject<THREE.Scene | null>;
@@ -9,6 +10,15 @@ interface DebugCoordinatesProps {
 }
 
 export default function DebugCoordinates({ sceneRef, cameraRef, controlsRef }: DebugCoordinatesProps) {
+    const {
+        refCameraX, setRefCameraX,
+        refCameraY, setRefCameraY,
+        refCameraZ, setRefCameraZ,
+        refTargetX, setRefTargetX,
+        refTargetY, setRefTargetY,
+        refTargetZ, setRefTargetZ,
+    } = usePlanetsOptions();
+
     const [cameraPos, setCameraPos] = useState({ x: 0, y: 0, z: 0 });
     const [cameraTarget, setCameraTarget] = useState({ x: 0, y: 0, z: 0 });
     const [sceneCenter, setSceneCenter] = useState({ x: 0, y: 0, z: 0 });
@@ -63,6 +73,21 @@ export default function DebugCoordinates({ sceneRef, cameraRef, controlsRef }: D
                 parseFloat(inputTarget.z) || 0
             );
             controlsRef.current.update();
+        }
+    };
+
+    const setAsReference = () => {
+        if (cameraRef.current) {
+            const pos = cameraRef.current.position;
+            setRefCameraX(pos.x);
+            setRefCameraY(pos.y);
+            setRefCameraZ(pos.z);
+        }
+        if (controlsRef?.current) {
+            const target = controlsRef.current.target;
+            setRefTargetX(target.x);
+            setRefTargetY(target.y);
+            setRefTargetZ(target.z);
         }
     };
 
@@ -162,6 +187,29 @@ export default function DebugCoordinates({ sceneRef, cameraRef, controlsRef }: D
                     <p className="text-white/80">Y: {sceneCenter.y.toFixed(2)}</p>
                     <p className="text-white/80">Z: {sceneCenter.z.toFixed(2)}</p>
                 </div>
+            </div>
+
+            {/* Reference Position */}
+            <div className="border-t border-white/10 pt-3">
+                <p className="text-amber-400 font-semibold mb-2">📍 Position de Référence</p>
+                <div className="space-y-1 mb-3">
+                    <p className="text-white/60 text-[10px] uppercase tracking-wider">Position</p>
+                    <p className="text-white/80">X: {refCameraX.toFixed(2)}</p>
+                    <p className="text-white/80">Y: {refCameraY.toFixed(2)}</p>
+                    <p className="text-white/80">Z: {refCameraZ.toFixed(2)}</p>
+                </div>
+                <div className="space-y-1 mb-3">
+                    <p className="text-white/60 text-[10px] uppercase tracking-wider">Cible</p>
+                    <p className="text-white/80">X: {refTargetX.toFixed(2)}</p>
+                    <p className="text-white/80">Y: {refTargetY.toFixed(2)}</p>
+                    <p className="text-white/80">Z: {refTargetZ.toFixed(2)}</p>
+                </div>
+                <button
+                    onClick={setAsReference}
+                    className="w-full px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-semibold transition-colors"
+                >
+                    Définir comme référence
+                </button>
             </div>
         </div>
     );

@@ -9,7 +9,7 @@ from rest_framework.routers import DefaultRouter
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 # Import all ViewSets
-from apps.core.api.views import DanceStyleViewSet, LevelViewSet, DanceProfessionViewSet, SiteConfigurationViewSet
+from apps.core.api.views import DanceStyleViewSet, LevelViewSet, DanceProfessionViewSet, SiteConfigurationViewSet, MenuItemViewSet
 from apps.users.api.views import UserViewSet
 from apps.organization.api.views import OrganizationNodeViewSet, OrganizationRoleViewSet
 from apps.courses.api.views import CourseViewSet, EnrollmentViewSet
@@ -23,6 +23,7 @@ router.register(r'common/styles', DanceStyleViewSet, basename='style')
 router.register(r'common/levels', LevelViewSet, basename='level')
 router.register(r'common/professions', DanceProfessionViewSet, basename='profession')
 router.register(r'common/config', SiteConfigurationViewSet, basename='config')
+router.register(r'menu/items', MenuItemViewSet, basename='menu-item')
 
 # Users
 router.register(r'users/profiles', UserViewSet, basename='user')

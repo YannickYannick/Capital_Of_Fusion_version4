@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DanceStyle, Level, DanceProfession, SiteConfiguration
+from .models import DanceStyle, Level, DanceProfession, SiteConfiguration, MenuItem
 
 @admin.register(DanceStyle)
 class DanceStyleAdmin(admin.ModelAdmin):
@@ -44,3 +44,25 @@ class SiteConfigurationAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         # Prevent deletion
         return False
+
+
+@admin.register(MenuItem)
+class MenuItemAdmin(admin.ModelAdmin):
+    list_display = ('name', 'slug', 'parent', 'url', 'order', 'is_active')
+    list_filter = ('is_active', 'parent')
+    list_editable = ('order', 'is_active')
+    search_fields = ('name', 'slug', 'url')
+    prepopulated_fields = {'slug': ('name',)}
+    ordering = ('order', 'name')
+    
+    fieldsets = (
+        ('Informations', {
+            'fields': ('name', 'slug', 'parent')
+        }),
+        ('Navigation', {
+            'fields': ('url', 'icon', 'order')
+        }),
+        ('Visibilité', {
+            'fields': ('is_active',)
+        }),
+    )

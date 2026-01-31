@@ -111,4 +111,60 @@ class SiteConfiguration(models.Model):
         return obj
 
 
-__all__ = ['BaseModel', 'DanceStyle', 'Level', 'DanceProfession', 'SiteConfiguration']
+class MenuItem(BaseModel):
+    """
+    Model for navigation menu items with hierarchical structure.
+    Supports nested dropdowns for cascade menus.
+    """
+    name = models.CharField(
+        max_length=100,
+        verbose_name="Nom",
+        help_text="Nom affiché dans le menu"
+    )
+    slug = models.SlugField(
+        unique=True,
+        help_text="Identifiant unique pour l'URL"
+    )
+    parent = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='children',
+        verbose_name="Parent",
+        help_text="Élément parent (vide pour les éléments racine)"
+    )
+    url = models.CharField(
+        max_length=200,
+        verbose_name="URL",
+        help_text="URL cible (ex: /cours/planning)"
+    )
+    icon = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Icône",
+        help_text="Nom de l'icône Lucide React (ex: GraduationCap, Calendar)"
+    )
+    order = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Ordre",
+        help_text="Ordre d'affichage (plus petit = premier)"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Actif",
+        help_text="Afficher cet élément dans le menu"
+    )
+
+    class Meta:
+        verbose_name = "Élément de menu"
+        verbose_name_plural = "Éléments de menu"
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        if self.parent:
+            return f"{self.parent.name} > {self.name}"
+        return self.name
+
+
+__all__ = ['BaseModel', 'DanceStyle', 'Level', 'DanceProfession', 'SiteConfiguration', 'MenuItem']

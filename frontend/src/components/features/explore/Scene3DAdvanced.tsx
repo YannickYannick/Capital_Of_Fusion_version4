@@ -20,7 +20,7 @@ import {
     getSquirclePosition,
     type SphereConfig,
 } from '@/lib/physics';
-import { createPlanetLabel, updateLabelPosition } from '@/lib/planetLabels';
+import { createPlanetLabel, updateLabelPosition, updateLabelScale } from '@/lib/planetLabels';
 import { usePlanetsOptions } from '@/contexts/PlanetsOptionsContext';
 
 interface PhysicsState {
@@ -37,9 +37,11 @@ interface Scene3DAdvancedProps {
         controlsRef: React.RefObject<OrbitControls | null>
     ) => void;
     onPlanetDoubleClick?: (nodeSlug: string) => void;
+    onPlanetFirstClick?: (nodeSlug: string, planetName: string) => void;
+    onPlanetDeselect?: () => void;
 }
 
-export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Scene3DAdvancedProps = {}) {
+export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick, onPlanetFirstClick, onPlanetDeselect }: Scene3DAdvancedProps = {}) {
     const containerRef = useRef<HTMLDivElement>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -98,7 +100,6 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
         planetSpeed,
         freezePlanets,
         setFreezePlanets,
-        releaseFocus,
         fishEye,
         orbitSpacing,
         // Physics
@@ -106,8 +107,9 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
         collisionForce,
         damping,
         returnForce,
-        // Restart
+        // Restart & Reset
         restartToken,
+        resetToken,
         // Squircle
         orbitShape: globalOrbitShape,
         orbitRoundness: globalOrbitRoundness,
@@ -116,7 +118,14 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
         entryStartX,
         entryStartY,
         entryStartZ,
-        entrySpeed
+        entrySpeed,
+        // Camera reference position
+        refCameraX,
+        refCameraY,
+        refCameraZ,
+        refTargetX,
+        refTargetY,
+        refTargetZ
     } = usePlanetsOptions();
 
     // Fetch organization nodes from API
@@ -193,9 +202,94 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
 
     // Use Ref to avoid stale closures in animation loop
     const freezePlanetsRef = useRef(freezePlanets);
+    
+    // Time compensation refs for freeze/unfreeze continuity
+    const frozenAtTimeRef = useRef<number | null>(null);
+    const timeOffsetRef = useRef<number>(0);
+    
     useEffect(() => {
+        const wasFrozen = freezePlanetsRef.current;
         freezePlanetsRef.current = freezePlanets;
+        
+        if (freezePlanets && !wasFrozen) {
+            // Just frozen - save the current time
+            frozenAtTimeRef.current = performance.now() * 0.001;
+        } else if (!freezePlanets && wasFrozen && frozenAtTimeRef.current !== null) {
+            // Just unfrozen - calculate time spent frozen and add to offset
+            const now = performance.now() * 0.001;
+            const frozenDuration = now - frozenAtTimeRef.current;
+            timeOffsetRef.current += frozenDuration;
+            frozenAtTimeRef.current = null;
+        }
     }, [freezePlanets]);
+
+    // Reset token ref for external reset trigger
+    const resetTokenRef = useRef(resetToken);
+    
+    // Camera reference position refs (to use in callbacks without stale closures)
+    const refCameraXRef = useRef(refCameraX);
+    const refCameraYRef = useRef(refCameraY);
+    const refCameraZRef = useRef(refCameraZ);
+    const refTargetXRef = useRef(refTargetX);
+    const refTargetYRef = useRef(refTargetY);
+    const refTargetZRef = useRef(refTargetZ);
+    
+    // Keep refs in sync with context values
+    useEffect(() => {
+        refCameraXRef.current = refCameraX;
+        refCameraYRef.current = refCameraY;
+        refCameraZRef.current = refCameraZ;
+        refTargetXRef.current = refTargetX;
+        refTargetYRef.current = refTargetY;
+        refTargetZRef.current = refTargetZ;
+    }, [refCameraX, refCameraY, refCameraZ, refTargetX, refTargetY, refTargetZ]);
+    
+    // Effect to handle external reset requests
+    useEffect(() => {
+        if (resetToken > 0 && resetToken !== resetTokenRef.current) {
+            resetTokenRef.current = resetToken;
+            
+            // Trigger reset: deselect and unfreeze
+            selectedIdRef.current = null;
+            if (onPlanetDeselect) {
+                onPlanetDeselect();
+            }
+            
+            // Animate camera to reference position
+            if (cameraRef.current && controlsRef.current) {
+                const camera = cameraRef.current;
+                const controls = controlsRef.current;
+                
+                isAnimatingRef.current = true;
+                
+                // Use gsap for smooth animation
+                import('gsap').then(({ default: gsap }) => {
+                    gsap.to(camera.position, {
+                        x: refCameraXRef.current,
+                        y: refCameraYRef.current,
+                        z: refCameraZRef.current,
+                        duration: 1.5,
+                        ease: 'power2.inOut',
+                        onComplete: () => { isAnimatingRef.current = false; }
+                    });
+                    
+                    gsap.to(controls.target, {
+                        x: refTargetXRef.current,
+                        y: refTargetYRef.current,
+                        z: refTargetZRef.current,
+                        duration: 1.5,
+                        ease: 'power2.inOut',
+                        onUpdate: () => controls.update()
+                    });
+                });
+            }
+            
+            // Unfreeze planets
+            if (freezePlanetsRef.current) {
+                setFreezePlanets(false);
+            }
+        }
+    }, [resetToken, onPlanetDeselect, setFreezePlanets]);
 
 
 
@@ -273,10 +367,21 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
         sceneRef.current = scene;
 
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
-        const distance = 20;
-        const angle = (20 * Math.PI) / 180;
-        camera.position.set(0, Math.sin(angle) * distance, Math.cos(angle) * distance);
-        camera.lookAt(0, 0, 0);
+        
+        // Get initial camera position from reference (localStorage or defaults)
+        const getRefValue = (key: string, defaultVal: number): number => {
+            const saved = localStorage.getItem(key);
+            return saved !== null ? parseFloat(saved) : defaultVal;
+        };
+        const initCamX = getRefValue('camera_ref_x', 0);
+        const initCamY = getRefValue('camera_ref_y', 6.84);
+        const initCamZ = getRefValue('camera_ref_z', 18.79);
+        const initTargetX = getRefValue('camera_ref_target_x', 0);
+        const initTargetY = getRefValue('camera_ref_target_y', 0);
+        const initTargetZ = getRefValue('camera_ref_target_z', 0);
+        
+        camera.position.set(initCamX, initCamY, initCamZ);
+        camera.lookAt(initTargetX, initTargetY, initTargetZ);
         cameraRef.current = camera;
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -303,8 +408,11 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
         controls.minDistance = 5;
         controls.maxDistance = 60;
         controls.maxPolarAngle = Math.PI / 1.5;
+        
+        // Set controls target to reference target
+        controls.target.set(initTargetX, initTargetY, initTargetZ);
 
-        // Restore camera position from localStorage
+        // Restore camera position from session localStorage (overrides reference if user moved camera)
         try {
             const savedPos = localStorage.getItem('explore_camera_pos');
             const savedTarget = localStorage.getItem('explore_camera_target');
@@ -312,8 +420,6 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
             if (savedPos) {
                 const { x, y, z } = JSON.parse(savedPos);
                 camera.position.set(x, y, z);
-            } else {
-                controls.target.set(0, 0, 0);
             }
 
             if (savedTarget) {
@@ -322,7 +428,6 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
             }
         } catch (e) {
             console.warn('Failed to load camera settings', e);
-            controls.target.set(0, 0, 0);
         }
 
         controls.update();
@@ -736,11 +841,13 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
                     }
                 }
 
-                // Create label for this planet and store slug for API
+                // Create label for this planet and store slug/name for API
                 const mesh = meshRegistryRef.current.get(node.id);
                 if (mesh) {
                     // Store slug for API calls (backend uses slug as lookup_field)
                     mesh.userData.nodeSlug = node.slug;
+                    // Store name for display
+                    mesh.userData.nodeName = node.name;
 
                     const label = createPlanetLabel(node.name, scene);
                     label.position.copy(mesh.position);
@@ -838,8 +945,10 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
 
                         if (entryData.state === 'line') {
                             // Move linearly along X using delta time for frame-rate independent movement
-                            // Speed is now in range 10-50, so divide by 10 to get units per second (10 = 1 unit/s, 50 = 5 units/s)
-                            entryData.currentX += (entryData.speed / 10) * _dt;
+                            // Use live entrySpeed from context for real-time slider updates
+                            // Speed is in range 10-50, divide by 10 to get units per second (10 = 1 unit/s, 50 = 5 units/s)
+                            const liveSpeed = entrySpeed;
+                            entryData.currentX += (liveSpeed / 10) * _dt;
 
                             // Check if reached orbit (x >= 0)
                             if (entryData.currentX >= 0) {
@@ -875,7 +984,8 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
                             // Already in orbit (transitioned)
                             // Use standard orbital physics logic with phase offset for smooth continuation
                             if (!freezePlanetsRef.current) {
-                                const t = -(elapsed * node.orbit_speed * planetSpeed) + node.orbit_phase + entryData.phaseOffset;
+                                const adjustedElapsed = elapsed - timeOffsetRef.current;
+                                const t = -(adjustedElapsed * node.orbit_speed * planetSpeed) + node.orbit_phase + entryData.phaseOffset;
                                 let pos;
 
                                 const shape = globalShapeOverride ? globalOrbitShape : node.orbit_shape;
@@ -898,7 +1008,8 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
                     // --- NORMAL PHYSICS (Entry Complete or Legacy) ---
                     // Only update orbital position if not frozen
                     if (!freezePlanetsRef.current) {
-                        const t = -(elapsed * node.orbit_speed * planetSpeed) + node.orbit_phase;
+                        const adjustedElapsed = elapsed - timeOffsetRef.current;
+                        const t = -(adjustedElapsed * node.orbit_speed * planetSpeed) + node.orbit_phase;
                         let pos;
 
                         const shape = globalShapeOverride ? globalOrbitShape : node.orbit_shape;
@@ -952,10 +1063,11 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
                     mesh.rotation.y += mesh.userData.rotSpeed * 0.003;
                 }
 
-                // Update label position
+                // Update label position and scale
                 const label = labelsRef.current.get(id);
                 if (label) {
                     updateLabelPosition(label, mesh.position, 2);
+                    updateLabelScale(label, camera);
                 }
             });
         }
@@ -1022,7 +1134,63 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
             return null;
         }
 
-        const handleClick = (e: MouseEvent) => {
+        // Click timeout for distinguishing single click from double click
+        let clickTimeout: NodeJS.Timeout | null = null;
+        const DOUBLE_CLICK_DELAY = 250; // ms
+
+        // Helper to get node slug from object
+        const getNodeSlugFromObject = (obj: THREE.Object3D): string | null => {
+            let current: THREE.Object3D | null = obj;
+            while (current) {
+                if (current.userData.nodeSlug) {
+                    return current.userData.nodeSlug;
+                }
+                current = current.parent;
+            }
+            return null;
+        };
+
+        // Animate camera to a planet
+        const animateCameraToPlanet = (hitObject: THREE.Object3D) => {
+            const targetPosition = new THREE.Vector3();
+            hitObject.getWorldPosition(targetPosition);
+
+            // Calculate offset (adjust based on object scale if available)
+            const scale = hitObject.scale.x || 1;
+            const offset = CAMERA_OFFSET + (scale * 2);
+
+            const cameraTargetPos = new THREE.Vector3(
+                targetPosition.x,
+                targetPosition.y + (offset * 0.2), // Slight height offset
+                targetPosition.z + offset
+            );
+
+            isAnimatingRef.current = true;
+
+            // Animate position
+            gsap.to(camera.position, {
+                x: cameraTargetPos.x,
+                y: cameraTargetPos.y,
+                z: cameraTargetPos.z,
+                duration: CAMERA_ANIMATION_DURATION,
+                ease: 'power2.inOut',
+                onUpdate: () => camera.updateProjectionMatrix(),
+                onComplete: () => { isAnimatingRef.current = false; }
+            });
+
+            // Animate lookAt target
+            gsap.to(controls.target, {
+                x: targetPosition.x,
+                y: targetPosition.y,
+                z: targetPosition.z,
+                duration: CAMERA_ANIMATION_DURATION,
+                ease: 'power2.inOut',
+                onUpdate: () => controls.update()
+            });
+        };
+
+        // Process a confirmed single click
+        const processClick = (e: MouseEvent) => {
             if (isAnimatingRef.current) return;
 
             updateMousePosition(e.clientX, e.clientY);
@@ -1039,84 +1207,64 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
                 const id = getIdFromObject(hit.object);
                 if (id) {
                     clickedId = id;
-                    hitObject = meshRegistryRef.current.get(id) || hit.object; // Prefer registered wrapper/mesh
+                    hitObject = meshRegistryRef.current.get(id) || hit.object;
                     break;
                 }
             }
 
             if (clickedId && hitObject) {
-                // Case B: Second click on SAME object (Navigation)
+                // Case B: Second click on SAME planet -> Open overlay
                 if (selectedIdRef.current === clickedId) {
-                    console.log('Second click - Navigating:', clickedId);
-
-                    // Get slug from userData
-                    let current: THREE.Object3D | null = hitObject;
-                    let nodeSlug = null;
-                    while (current) {
-                        if (current.userData.nodeSlug) {
-                            nodeSlug = current.userData.nodeSlug;
-                            break;
-                        }
-                        current = current.parent;
-                    }
-
+                    console.log('Second click - Opening overlay:', clickedId);
+                    const nodeSlug = getNodeSlugFromObject(hitObject);
                     if (nodeSlug && onPlanetDoubleClick) {
                         onPlanetDoubleClick(nodeSlug);
                     }
                     return;
                 }
 
-                // Case A: First click on an object (Selection & Zoom)
-                console.log('First click - Selecting:', clickedId);
+                // Case A: First click OR click on different planet
+                console.log('Click - Selecting planet:', clickedId);
+                const wasAlreadyFrozen = freezePlanetsRef.current;
+                
                 selectedIdRef.current = clickedId;
 
-                // Animate Camera
-                const targetPosition = new THREE.Vector3();
-                hitObject.getWorldPosition(targetPosition);
+                // Animate camera to the planet
+                animateCameraToPlanet(hitObject);
 
-                // Calculate offset (adjust based on object scale if available)
-                const scale = hitObject.scale.x || 1;
-                const offset = CAMERA_OFFSET + (scale * 2);
-
-                const cameraTargetPos = new THREE.Vector3(
-                    targetPosition.x,
-                    targetPosition.y + (offset * 0.2), // Slight height offset
-                    targetPosition.z + offset
-                );
-
-                isAnimatingRef.current = true;
-
-                // Animate position
-                gsap.to(camera.position, {
-                    x: cameraTargetPos.x,
-                    y: cameraTargetPos.y,
-                    z: cameraTargetPos.z,
-                    duration: CAMERA_ANIMATION_DURATION,
-                    ease: 'power2.inOut',
-                    onUpdate: () => camera.updateProjectionMatrix(),
-                    onComplete: () => { isAnimatingRef.current = false; }
-                });
-
-                // Animate lookAt target
-                gsap.to(controls.target, {
-                    x: targetPosition.x,
-                    y: targetPosition.y,
-                    z: targetPosition.z,
-                    duration: CAMERA_ANIMATION_DURATION,
-                    ease: 'power2.inOut',
-                    onUpdate: () => controls.update()
-                });
-
-                // Freeze planets on selection
-                if (!freezePlanetsRef.current) {
+                // Freeze planets on first selection only
+                if (!wasAlreadyFrozen) {
                     setFreezePlanets(true);
                 }
 
+                // Notify parent of first click with slug and name
+                const nodeSlug = getNodeSlugFromObject(hitObject);
+                const planetName = hitObject.userData.nodeName || hitObject.name || 'Planète';
+                if (nodeSlug && onPlanetFirstClick) {
+                    onPlanetFirstClick(nodeSlug, planetName);
+                }
+
             } else {
-                // Case C: Click in empty space (Deselect & Reset)
+                // Case C: Click in empty space -> Deselect & Reset
                 console.log('Empty click - Resetting');
                 handleReset();
             }
+        };
+
+        const handleClick = (e: MouseEvent) => {
+            // Cancel any pending single click
+            if (clickTimeout) {
+                clearTimeout(clickTimeout);
+                clickTimeout = null;
+                // This was a double-click, don't process as single click
+                return;
+            }
+
+            // Wait to see if this is a double-click
+            clickTimeout = setTimeout(() => {
+                clickTimeout = null;
+                processClick(e);
+            }, DOUBLE_CLICK_DELAY);
         };
 
         const handleReset = () => {
@@ -1124,32 +1272,45 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
             selectedIdRef.current = null;
             isAnimatingRef.current = true;
 
-            // Reset to initial view
-            const distance = 20;
-            const angle = (20 * Math.PI) / 180;
-            const targetPos = new THREE.Vector3(0, Math.sin(angle) * distance, Math.cos(angle) * distance);
+            // Notify parent that planet is deselected
+            if (onPlanetDeselect) {
+                onPlanetDeselect();
+            }
 
+            // Reset to reference position
             gsap.to(camera.position, {
-                x: targetPos.x,
-                y: targetPos.y,
-                z: targetPos.z,
+                x: refCameraXRef.current,
+                y: refCameraYRef.current,
+                z: refCameraZRef.current,
                 duration: CAMERA_ANIMATION_DURATION,
                 ease: 'power2.inOut',
                 onComplete: () => { isAnimatingRef.current = false; }
             });
 
             gsap.to(controls.target, {
-                x: 0,
-                y: 0,
-                z: 0,
+                x: refTargetXRef.current,
+                y: refTargetYRef.current,
+                z: refTargetZRef.current,
                 duration: CAMERA_ANIMATION_DURATION,
                 ease: 'power2.inOut',
                 onUpdate: () => controls.update()
             });
+
+            // Unfreeze planets to resume orbits
+            if (freezePlanetsRef.current) {
+                setFreezePlanets(false);
+            }
         };
 
         const handleDoubleClick = (e: MouseEvent) => {
             e.preventDefault();
+            // Clear any pending single click
+            if (clickTimeout) {
+                clearTimeout(clickTimeout);
+                clickTimeout = null;
+            }
+            // Double-click anywhere resets the view
+            console.log('Double-click - Resetting');
             handleReset();
         };
 
@@ -1178,6 +1339,11 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
 
         // Cleanup
         return () => {
+            // Clear click timeout if pending
+            if (clickTimeout) {
+                clearTimeout(clickTimeout);
+            }
+            
             window.removeEventListener('pointermove', handlePointerMove);
             window.removeEventListener('resize', handleResize);
             renderer.domElement.removeEventListener('click', handleClick);

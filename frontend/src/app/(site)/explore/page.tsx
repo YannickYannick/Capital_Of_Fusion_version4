@@ -3,44 +3,70 @@
 import { useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import DebugCoordinates from "@/components/features/explore/DebugCoordinates";
-import PlanetDetailPanel from "@/components/features/explore/PlanetDetailPanel";
+import PlanetOverlay from "@/components/features/explore/PlanetOverlay";
 import GlobalPlanetConfigPanel from "@/components/features/explore/GlobalPlanetConfigPanel";
 
 const Scene3DAdvanced = dynamic(() => import("@/components/features/explore/Scene3DAdvanced"), {
     ssr: false,
 });
-import { Eye, EyeOff, Info, Play, Pause, Palette, Settings } from "lucide-react";
+import { Eye, EyeOff, Info, Play, Pause, Palette, Settings, ArrowLeft, ExternalLink } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { usePlanetsOptions } from "@/contexts/PlanetsOptionsContext";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
+import { OrganizationNode } from "@/types/organization";
 
 export default function ExplorePage() {
-    // Panel state
+    // Selection & Overlay state
     const [selectedNodeSlug, setSelectedNodeSlug] = useState<string | null>(null);
-    const [isPanelOpen, setIsPanelOpen] = useState(false);
+    const [selectedPlanetName, setSelectedPlanetName] = useState<string | null>(null);
+    const [isPlanetSelected, setIsPlanetSelected] = useState(false);
+    const [isOverlayOpen, setIsOverlayOpen] = useState(false);
     const [isGlobalConfigOpen, setIsGlobalConfigOpen] = useState(false);
 
-    // Fetch selected node details
-    const { data: selectedNodeData, isLoading: isLoadingNode } = useQuery({
+    // Fetch selected node details (only when overlay is open)
+    const { data: selectedNodeData, isLoading: isLoadingNode } = useQuery<OrganizationNode | null>({
         queryKey: ['organization-node', selectedNodeSlug],
         queryFn: async () => {
             if (!selectedNodeSlug) return null;
             const res = await api.get(`/organization/nodes/${selectedNodeSlug}/`);
             return res.data;
         },
-        enabled: !!selectedNodeSlug && isPanelOpen,
+        enabled: !!selectedNodeSlug && isOverlayOpen,
     });
 
-    const handlePlanetDoubleClick = (nodeSlug: string) => {
+    // Called on first click on a planet (zoom in)
+    const handlePlanetFirstClick = (nodeSlug: string, planetName: string) => {
         setSelectedNodeSlug(nodeSlug);
-        setIsPanelOpen(true);
+        setSelectedPlanetName(planetName);
+        setIsPlanetSelected(true);
     };
 
-    const handlePanelClose = () => {
-        setIsPanelOpen(false);
-        // Keep selectedNodeSlug for potential re-opening
+    // Called when planet is deselected (click empty or double-click)
+    const handlePlanetDeselect = () => {
+        setIsPlanetSelected(false);
+        // Keep slug for potential re-selection
+    };
+
+    // Called when user clicks "Détails" button or second click on same planet
+    const handleOpenOverlay = (nodeSlug?: string) => {
+        if (nodeSlug) {
+            setSelectedNodeSlug(nodeSlug);
+        }
+        setIsOverlayOpen(true);
+    };
+
+    // Called when user clicks "Retour" button
+    const handleBackClick = () => {
+        setIsPlanetSelected(false);
+        triggerReset(); // Triggers camera reset and unfreezes planets
+    };
+
+    const handleOverlayClose = () => {
+        setIsOverlayOpen(false);
+        // Keep selectedNodeSlug and isPlanetSelected for potential re-opening
     };
 
     const {
@@ -82,7 +108,15 @@ export default function ExplorePage() {
         entryStartZ,
         setEntryStartZ,
         entrySpeed,
-        setEntrySpeed
+        setEntrySpeed,
+        // Video Overlay Cycle
+        videoCycleVisible,
+        setVideoCycleVisible,
+        videoCycleHidden,
+        setVideoCycleHidden,
+        videoTransitionDuration,
+        setVideoTransitionDuration,
+        triggerReset
     } = usePlanetsOptions();
 
 
@@ -105,7 +139,9 @@ export default function ExplorePage() {
             {/* 3D Scene */}
             <Scene3DAdvanced
                 onRefsReady={handleRefsReady}
-                onPlanetDoubleClick={handlePlanetDoubleClick}
+                onPlanetDoubleClick={handleOpenOverlay}
+                onPlanetFirstClick={handlePlanetFirstClick}
+                onPlanetDeselect={handlePlanetDeselect}
             />
 
             {/* Debug Coordinates */}
@@ -116,6 +152,48 @@ export default function ExplorePage() {
                     controlsRef={controlsRef}
                 />
             )}
+
+            {/* Planet Selection Action Bar - Centered */}
+            <AnimatePresence>
+                {isPlanetSelected && !isOverlayOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        className="fixed inset-0 flex items-center justify-center z-30 pointer-events-none"
+                    >
+                        <div className="flex flex-col items-center gap-6 px-10 py-8 bg-black/80 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl pointer-events-auto">
+                            {/* Planet Name */}
+                            <div className="text-center">
+                                <p className="text-white/50 text-sm uppercase tracking-wider mb-2">Sélectionné</p>
+                                <p className="text-white font-bold text-3xl">{selectedPlanetName}</p>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-4">
+                                {/* Details Button */}
+                                <button
+                                    onClick={() => handleOpenOverlay()}
+                                    className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white text-lg font-semibold rounded-2xl transition-all hover:scale-105 shadow-xl shadow-purple-500/30"
+                                >
+                                    <ExternalLink className="w-6 h-6" />
+                                    Détails
+                                </button>
+
+                                {/* Back Button */}
+                                <button
+                                    onClick={handleBackClick}
+                                    className="flex items-center gap-3 px-8 py-4 bg-white/10 hover:bg-white/20 text-white text-lg font-semibold rounded-2xl transition-all border border-white/20 hover:border-white/30"
+                                >
+                                    <ArrowLeft className="w-6 h-6" />
+                                    Retour
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Hint Overlay */}
             <div className="fixed bottom-8 left-8 p-4 bg-black/40 backdrop-blur-md rounded-xl border border-white/5 pointer-events-none z-20">
@@ -464,6 +542,62 @@ export default function ExplorePage() {
                     </div>
                 </div>
 
+                <div className="pt-2 border-t border-white/10 space-y-3">
+                    <p className="text-white/50 text-xs font-medium uppercase tracking-widest">Superposition Vidéo</p>
+
+                    <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-white/70">
+                            <span>Durée visible</span>
+                            <span>{videoCycleVisible}s</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="1"
+                            max="30"
+                            step="1"
+                            value={videoCycleVisible}
+                            onChange={(e) => setVideoCycleVisible(Number(e.target.value))}
+                            className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer hover:bg-white/30 accent-white"
+                        />
+                    </div>
+
+                    <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-white/70">
+                            <span>Durée cachée</span>
+                            <span>{videoCycleHidden}s</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="1"
+                            max="30"
+                            step="1"
+                            value={videoCycleHidden}
+                            onChange={(e) => setVideoCycleHidden(Number(e.target.value))}
+                            className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer hover:bg-white/30 accent-white"
+                        />
+                    </div>
+
+                    <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-white/70">
+                            <span>Transition</span>
+                            <span>{(videoTransitionDuration / 1000).toFixed(1)}s</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="500"
+                            max="3000"
+                            step="100"
+                            value={videoTransitionDuration}
+                            onChange={(e) => setVideoTransitionDuration(Number(e.target.value))}
+                            className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer hover:bg-white/30 accent-white"
+                        />
+                    </div>
+
+                    <div className="text-[10px] text-white/40 italic">
+                        background-video.mp4 (permanent) + Aftermoovie_vibe.mp4 (cyclique)
+                    </div>
+                </div>
+
                 <button
                     onClick={triggerRestart}
                     className="flex items-center justify-center gap-2 w-full mt-4 px-3 py-2 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 font-medium transition-colors text-sm border border-indigo-500/30"
@@ -473,11 +607,11 @@ export default function ExplorePage() {
                 </button>
             </div>
 
-            {/* Planet Detail Panel */}
-            <PlanetDetailPanel
-                isOpen={isPanelOpen}
-                onClose={handlePanelClose}
-                nodeData={selectedNodeData}
+            {/* Planet Overlay (Central Modal) */}
+            <PlanetOverlay
+                isOpen={isOverlayOpen}
+                onClose={handleOverlayClose}
+                nodeData={selectedNodeData ?? null}
                 isLoading={isLoadingNode}
             />
 

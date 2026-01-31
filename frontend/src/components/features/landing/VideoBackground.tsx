@@ -2,20 +2,49 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Volume2, VolumeX } from "lucide-react";
+import { usePlanetsOptions } from "@/contexts/PlanetsOptionsContext";
 
 interface VideoBackgroundProps {
     // videoId is kept for backward compatibility but ignored for local video now
     videoId?: string;
-    videoSrc?: string; // Custom video source, defaults to /Aftermoovie_vibe.mp4
+    videoSrc?: string; // Primary video source (permanent, base layer)
+    secondaryVideoSrc?: string; // Secondary video source (cyclically visible on top)
+    enableDualVideo?: boolean; // Enable dual video overlay mode
     isGrayscale?: boolean;
     enableCycle?: boolean;
     isVisible?: boolean;
     overlayOpacity?: number; // Overlay opacity (0-1), defaults to 0.3
 }
 
-export default function VideoBackground({ videoSrc = "/Aftermoovie_vibe.mp4", isGrayscale = false, enableCycle = false, isVisible = true, overlayOpacity = 0.3 }: VideoBackgroundProps) {
+export default function VideoBackground({ 
+    videoSrc = "/background-video.mp4", 
+    secondaryVideoSrc = "/Aftermoovie_vibe.mp4",
+    enableDualVideo = false,
+    isGrayscale = false, 
+    enableCycle = false, 
+    isVisible = true, 
+    overlayOpacity = 0.3 
+}: VideoBackgroundProps) {
     const [isMuted, setIsMuted] = useState(true); // Start muted for autoplay compatibility
     const videoRef = useRef<HTMLVideoElement>(null);
+    const secondaryVideoRef = useRef<HTMLVideoElement>(null);
+    const [showSecondary, setShowSecondary] = useState(false);
+    
+    // Get video cycle parameters from context
+    const { videoCycleVisible, videoCycleHidden, videoTransitionDuration } = usePlanetsOptions();
+    
+    // Cycle logic for dual video mode
+    useEffect(() => {
+        if (!enableDualVideo) return;
+        
+        const cycleDuration = showSecondary ? videoCycleVisible * 1000 : videoCycleHidden * 1000;
+        
+        const timeout = setTimeout(() => {
+            setShowSecondary(prev => !prev);
+        }, cycleDuration);
+        
+        return () => clearTimeout(timeout);
+    }, [enableDualVideo, showSecondary, videoCycleVisible, videoCycleHidden]);
 
 
     // Force play if autoplay fails (Chrome autoplay policy)
@@ -177,11 +206,45 @@ export default function VideoBackground({ videoSrc = "/Aftermoovie_vibe.mp4", is
         }
     };
 
+    // Autoplay logic for secondary video
+    useEffect(() => {
+        const video = secondaryVideoRef.current;
+        if (!video || !enableDualVideo) return;
+
+        video.muted = true;
+        video.setAttribute('muted', '');
+
+        const tryPlay = async () => {
+            try {
+                if (video.paused) {
+                    await video.play();
+                }
+            } catch (error) {
+                setTimeout(() => {
+                    video.muted = true;
+                    video.play().catch(() => {});
+                }, 500);
+            }
+        };
+
+        video.addEventListener('canplay', tryPlay);
+        video.addEventListener('loadeddata', tryPlay);
+
+        if (video.readyState >= 2) {
+            tryPlay();
+        }
+
+        return () => {
+            video.removeEventListener('canplay', tryPlay);
+            video.removeEventListener('loadeddata', tryPlay);
+        };
+    }, [enableDualVideo, secondaryVideoSrc]);
+
     return (
         <>
             {/* Video Background Container - z-0 to be behind content but visible */}
             <div className={`fixed inset-0 z-0 overflow-hidden pointer-events-none transition-all duration-1000 ${isGrayscale ? 'grayscale' : ''} ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                {/* Local Video Wrapper - behind overlay */}
+                {/* Primary Video - Base layer (always visible) */}
                 <div className="absolute inset-0 w-full h-full">
                     <video
                         ref={videoRef}
@@ -197,7 +260,31 @@ export default function VideoBackground({ videoSrc = "/Aftermoovie_vibe.mp4", is
                     />
                 </div>
 
-                {/* Dark Overlay with Gradient - on top of video */}
+                {/* Secondary Video - Overlay layer (cyclically visible) */}
+                {enableDualVideo && (
+                    <div 
+                        className="absolute inset-0 w-full h-full transition-opacity"
+                        style={{ 
+                            opacity: showSecondary ? 1 : 0,
+                            transitionDuration: `${videoTransitionDuration}ms`
+                        }}
+                    >
+                        <video
+                            ref={secondaryVideoRef}
+                            className="w-full h-full object-cover"
+                            src={secondaryVideoSrc}
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                            preload="auto"
+                            webkit-playsinline="true"
+                            x5-playsinline="true"
+                        />
+                    </div>
+                )}
+
+                {/* Dark Overlay with Gradient - on top of videos */}
                 <div className={`absolute inset-0 transition-opacity duration-[3000ms] ${enableCycle ? 'animate-pulse opacity-80' : 'opacity-100'}`} style={{ backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})`, backgroundImage: `linear-gradient(to top, rgba(0, 0, 0, ${Math.min(overlayOpacity * 3, 0.9)}), rgba(0, 0, 0, ${overlayOpacity * 0.67}), rgba(0, 0, 0, ${Math.min(overlayOpacity * 2, 0.6)}))` }} />
             </div>
 

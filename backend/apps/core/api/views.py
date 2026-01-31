@@ -1,8 +1,8 @@
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from apps.core.models import DanceStyle, Level, DanceProfession, SiteConfiguration
-from .serializers import DanceStyleSerializer, LevelSerializer, DanceProfessionSerializer, SiteConfigurationSerializer
+from apps.core.models import DanceStyle, Level, DanceProfession, SiteConfiguration, MenuItem
+from .serializers import DanceStyleSerializer, LevelSerializer, DanceProfessionSerializer, SiteConfigurationSerializer, MenuItemSerializer
 
 class DanceStyleViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DanceStyle.objects.filter(parent=None)
@@ -33,3 +33,17 @@ class SiteConfigurationViewSet(viewsets.ViewSet):
         config = SiteConfiguration.load()
         serializer = SiteConfigurationSerializer(config)
         return Response(serializer.data)
+
+
+class MenuItemViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for navigation menu items.
+    Returns only active root items with their children nested recursively.
+    
+    GET /api/menu/items/ - List all root menu items with children
+    GET /api/menu/items/{slug}/ - Get a specific menu item by slug
+    """
+    queryset = MenuItem.objects.filter(parent=None, is_active=True).order_by('order', 'name')
+    serializer_class = MenuItemSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = 'slug'
