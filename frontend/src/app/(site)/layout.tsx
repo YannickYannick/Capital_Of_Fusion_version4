@@ -40,26 +40,22 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
     const { enableVideoCycle, grayscaleVideo } = usePlanetsOptions();
 
     return (
-        <div className="relative min-h-screen bg-background">
+        <div className="relative min-h-screen">
             {/* Local MP4 Video Background */}
-            {/* On explore page: use background-video.mp4, otherwise use Aftermoovie_vibe.mp4 */}
-            {isExplorePage ? (
-                <VideoBackground
-                    videoId={videoId}
-                    videoSrc="/background-video.mp4" overlayOpacity={0.05}
-                    enableCycle={enableVideoCycle}
-                    isGrayscale={grayscaleVideo}
-                />
-            ) : (
-                <VideoBackground
-                    videoId={videoId}
-                    enableCycle={enableVideoCycle}
-                    isGrayscale={grayscaleVideo}
-                />
-            )}
+            {/* Use Aftermoovie_vibe.mp4 on all pages, with different overlay opacity */}
+            <VideoBackground
+                videoId={videoId}
+                videoSrc="/Aftermoovie_vibe.mp4"
+                overlayOpacity={isExplorePage ? 0.05 : 0.3}
+                enableCycle={enableVideoCycle}
+                isGrayscale={grayscaleVideo}
+            />
 
-            <Navbar />
-            {children}
+            {/* Content container with relative positioning to be above video */}
+            <div className="relative z-10">
+                <Navbar />
+                {children}
+            </div>
         </div>
     );
 }

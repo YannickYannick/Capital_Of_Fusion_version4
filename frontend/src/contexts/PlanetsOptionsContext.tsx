@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface PlanetsOptionsContextType {
     showOrbits: boolean;
@@ -37,6 +37,15 @@ interface PlanetsOptionsContextType {
     setOrbitRoundness: (v: number) => void;
     globalShapeOverride: boolean;
     setGlobalShapeOverride: (v: boolean) => void;
+    // Entry Animation (Global - applies to all planets for now)
+    entryStartX: number;
+    setEntryStartX: (v: number) => void;
+    entryStartY: number;
+    setEntryStartY: (v: number) => void;
+    entryStartZ: number | null;
+    setEntryStartZ: (v: number | null) => void;
+    entrySpeed: number;
+    setEntrySpeed: (v: number) => void;
 }
 
 const PlanetsOptionsContext = createContext<PlanetsOptionsContextType | undefined>(undefined);
@@ -63,6 +72,64 @@ export function PlanetsOptionsProvider({ children }: { children: ReactNode }) {
     const [orbitShape, setOrbitShape] = useState<'circle' | 'squircle'>('circle');
     const [orbitRoundness, setOrbitRoundness] = useState(0.6);
     const [globalShapeOverride, setGlobalShapeOverride] = useState(false);
+
+    // Entry Animation (Global - applies to all planets for now)
+    // Load from localStorage or use defaults
+    const [entryStartX, setEntryStartXState] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('planets_entryStartX');
+            return saved ? parseFloat(saved) : -60.0;
+        }
+        return -60.0;
+    });
+    const [entryStartY, setEntryStartYState] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('planets_entryStartY');
+            return saved ? parseFloat(saved) : 0.0;
+        }
+        return 0.0;
+    });
+    const [entryStartZ, setEntryStartZState] = useState<number | null>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('planets_entryStartZ');
+            if (saved === 'null') return null;
+            return saved ? parseFloat(saved) : null;
+        }
+        return null;
+    });
+    const [entrySpeed, setEntrySpeedState] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('planets_entrySpeed');
+            return saved ? parseFloat(saved) : 30;
+        }
+        return 30;
+    });
+
+    // Wrapper functions to save to localStorage on change
+    const setEntryStartX = (value: number) => {
+        setEntryStartXState(value);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('planets_entryStartX', value.toString());
+        }
+    };
+    const setEntryStartY = (value: number) => {
+        setEntryStartYState(value);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('planets_entryStartY', value.toString());
+        }
+    };
+    const setEntryStartZ = (value: number | null) => {
+        setEntryStartZState(value);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('planets_entryStartZ', value === null ? 'null' : value.toString());
+        }
+    };
+    const setEntrySpeed = (value: number) => {
+        setEntrySpeedState(value);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('planets_entrySpeed', value.toString());
+        }
+    };
 
     return (
         <PlanetsOptionsContext.Provider value={{
@@ -98,7 +165,15 @@ export function PlanetsOptionsProvider({ children }: { children: ReactNode }) {
             orbitRoundness,
             setOrbitRoundness,
             globalShapeOverride,
-            setGlobalShapeOverride
+            setGlobalShapeOverride,
+            entryStartX,
+            setEntryStartX,
+            entryStartY,
+            setEntryStartY,
+            entryStartZ,
+            setEntryStartZ,
+            entrySpeed,
+            setEntrySpeed
         }}>
             {children}
         </PlanetsOptionsContext.Provider>

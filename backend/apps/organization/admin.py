@@ -20,10 +20,19 @@ class OrganizationNodeAdmin(admin.ModelAdmin):
                 'planet_color', 
                 'planet_scale',
                 ('orbit_radius', 'orbit_speed', 'orbit_phase'),
+                ('orbit_shape', 'orbit_roundness'),
                 'rotation_speed',
             ],
             'classes': ['collapse'],
             'description': 'Paramètres de visualisation 3D pour la page /explore'
+        }),
+        ('Animation d\'Entrée', {
+            'fields': [
+                ('entry_start_x', 'entry_start_y', 'entry_start_z'),
+                'entry_speed',
+            ],
+            'classes': ['collapse'],
+            'description': 'Configuration de la trajectoire d\'entrée (ligne droite avant l\'orbite)'
         }),
         ('Médias', {
             'fields': ['video_url'],

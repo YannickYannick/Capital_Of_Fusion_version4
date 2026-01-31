@@ -23,6 +23,10 @@ export default function VideoBackground({ videoSrc = "/Aftermoovie_vibe.mp4", is
         const video = videoRef.current;
         if (!video) return;
 
+        // Ensure video is muted for autoplay
+        video.muted = true;
+        video.setAttribute('muted', '');
+        
         const tryPlay = async () => {
             try {
                 if (video.paused) {
@@ -30,7 +34,12 @@ export default function VideoBackground({ videoSrc = "/Aftermoovie_vibe.mp4", is
                     console.log('[VideoBackground] Video play() successful');
                 }
             } catch (error) {
-                console.warn('[VideoBackground] Autoplay prevented, video will play on user interaction:', error);
+                console.warn('[VideoBackground] Autoplay prevented:', error);
+                // Try again after a short delay
+                setTimeout(() => {
+                    video.muted = true;
+                    video.play().catch(e => console.warn('[VideoBackground] Retry play failed:', e));
+                }, 500);
             }
         };
 
@@ -39,17 +48,43 @@ export default function VideoBackground({ videoSrc = "/Aftermoovie_vibe.mp4", is
             tryPlay();
         };
 
+        // Try to play when video has loaded metadata
+        const handleLoadedMetadata = () => {
+            video.muted = true;
+            tryPlay();
+        };
+
+        // Try to play when video has loaded data
+        const handleLoadedData = () => {
+            video.muted = true;
+            tryPlay();
+        };
+
         video.addEventListener('canplay', handleCanPlay);
+        video.addEventListener('loadedmetadata', handleLoadedMetadata);
+        video.addEventListener('loadeddata', handleLoadedData);
 
         // Also try immediately if video is already ready
-        if (video.readyState >= 3) {
+        if (video.readyState >= 2) {
+            video.muted = true;
             tryPlay();
         }
 
+        // Fallback: try play after component mount
+        const timeoutId = setTimeout(() => {
+            if (video.paused) {
+                video.muted = true;
+                tryPlay();
+            }
+        }, 1000);
+
         return () => {
             video.removeEventListener('canplay', handleCanPlay);
+            video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+            video.removeEventListener('loadeddata', handleLoadedData);
+            clearTimeout(timeoutId);
         };
-    }, []);
+    }, [videoSrc]);
 
 
 
@@ -59,6 +94,10 @@ export default function VideoBackground({ videoSrc = "/Aftermoovie_vibe.mp4", is
             console.error('❌ [VideoBackground] Video element ref is null!');
             return;
         }
+
+        // Force muted for autoplay
+        video.muted = true;
+        video.setAttribute('muted', '');
 
         console.log('✅ [VideoBackground] Component mounted');
         console.log('📹 [VideoBackground] Video element properties:', {
@@ -72,9 +111,22 @@ export default function VideoBackground({ videoSrc = "/Aftermoovie_vibe.mp4", is
         });
 
         // Event listeners for tracking video loading
-        const handleLoadStart = () => console.log('🔄 [VideoBackground] Load started');
-        const handleLoadedData = () => console.log('✅ [VideoBackground] Video data loaded');
-        const handleCanPlay = () => console.log('▶️ [VideoBackground] Video can play');
+        const handleLoadStart = () => {
+            console.log('🔄 [VideoBackground] Load started');
+            video.muted = true;
+        };
+        const handleLoadedData = () => {
+            console.log('✅ [VideoBackground] Video data loaded');
+            video.muted = true;
+            // Try to play when data is loaded
+            video.play().catch(e => console.warn('[VideoBackground] Play on loadedData failed:', e));
+        };
+        const handleCanPlay = () => {
+            console.log('▶️ [VideoBackground] Video can play');
+            video.muted = true;
+            // Try to play when video can play
+            video.play().catch(e => console.warn('[VideoBackground] Play on canPlay failed:', e));
+        };
         const handlePlaying = () => console.log('🎬 [VideoBackground] Video is playing');
         const handleError = (e: Event) => {
             const videoError = (e.target as HTMLVideoElement).error;
@@ -95,6 +147,14 @@ export default function VideoBackground({ videoSrc = "/Aftermoovie_vibe.mp4", is
         video.addEventListener('stalled', handleStalled);
         video.addEventListener('waiting', handleWaiting);
 
+        // Fallback: try to play after a delay
+        const playTimeout = setTimeout(() => {
+            if (video.paused) {
+                video.muted = true;
+                video.play().catch(e => console.warn('[VideoBackground] Fallback play failed:', e));
+            }
+        }, 2000);
+
         return () => {
             video.removeEventListener('loadstart', handleLoadStart);
             video.removeEventListener('loadeddata', handleLoadedData);
@@ -103,9 +163,10 @@ export default function VideoBackground({ videoSrc = "/Aftermoovie_vibe.mp4", is
             video.removeEventListener('error', handleError);
             video.removeEventListener('stalled', handleStalled);
             video.removeEventListener('waiting', handleWaiting);
+            clearTimeout(playTimeout);
             console.log('🔚 [VideoBackground] Component unmounted');
         };
-    }, []);
+    }, [videoSrc]);
 
     console.log('[VideoBackground] Video src:', videoSrc, 'Overlay opacity:', overlayOpacity, 'Is visible:', isVisible);
     const toggleMute = () => {
@@ -118,23 +179,26 @@ export default function VideoBackground({ videoSrc = "/Aftermoovie_vibe.mp4", is
 
     return (
         <>
-            <div className={`fixed inset-0 z-[-2] overflow-hidden pointer-events-none transition-all duration-1000 ${isGrayscale ? 'grayscale' : ''} ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                {/* Dark Overlay with Gradient - Pulsing if cycle enabled */}
-                <div className={`absolute inset-0 z-10 transition-opacity duration-[3000ms] ${enableCycle ? 'animate-pulse opacity-80' : 'opacity-100'}`} style={{ backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})`, backgroundImage: `linear-gradient(to top, rgba(0, 0, 0, ${Math.min(overlayOpacity * 3, 0.9)}), rgba(0, 0, 0, ${overlayOpacity * 0.67}), rgba(0, 0, 0, ${Math.min(overlayOpacity * 2, 0.6)}))` }} />
-
-                {/* Local Video Wrapper */}
-                <div className={`absolute top-1/2 left-1/2 min-w-full min-h-full w-[110%] h-[110%] transform -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ${enableCycle ? 'opacity-60' : 'opacity-100'}`}>
+            {/* Video Background Container - z-0 to be behind content but visible */}
+            <div className={`fixed inset-0 z-0 overflow-hidden pointer-events-none transition-all duration-1000 ${isGrayscale ? 'grayscale' : ''} ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                {/* Local Video Wrapper - behind overlay */}
+                <div className="absolute inset-0 w-full h-full">
                     <video
                         ref={videoRef}
                         className="w-full h-full object-cover"
                         src={videoSrc}
                         autoPlay
-                        muted={isMuted}
+                        muted
                         loop
                         playsInline
                         preload="auto"
+                        webkit-playsinline="true"
+                        x5-playsinline="true"
                     />
                 </div>
+
+                {/* Dark Overlay with Gradient - on top of video */}
+                <div className={`absolute inset-0 transition-opacity duration-[3000ms] ${enableCycle ? 'animate-pulse opacity-80' : 'opacity-100'}`} style={{ backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})`, backgroundImage: `linear-gradient(to top, rgba(0, 0, 0, ${Math.min(overlayOpacity * 3, 0.9)}), rgba(0, 0, 0, ${overlayOpacity * 0.67}), rgba(0, 0, 0, ${Math.min(overlayOpacity * 2, 0.6)}))` }} />
             </div>
 
             {/* Sound Toggle Button - Outside pointer-events-none container */}

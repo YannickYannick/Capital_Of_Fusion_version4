@@ -13,6 +13,8 @@ class OrganizationNodeSerializer(serializers.ModelSerializer):
             'planet_color', 'orbit_radius', 'orbit_speed',
             'planet_scale', 'rotation_speed', 'orbit_phase', 
             'orbit_shape', 'orbit_roundness',
+            # Entry Animation
+            'entry_start_x', 'entry_start_y', 'entry_start_z', 'entry_speed',
             'is_visible_3d',
             'created_at', 'updated_at'
         ]

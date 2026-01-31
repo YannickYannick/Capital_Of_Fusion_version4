@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Users, Building2, Info, ExternalLink, Save, Settings } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -26,6 +26,11 @@ interface OrganizationNode {
     orbit_roundness?: number;
     planet_scale?: number;
     rotation_speed?: number;
+    // Entry animation parameters
+    entry_start_x?: number;
+    entry_start_y?: number;
+    entry_start_z?: number | null;
+    entry_speed?: number;
 }
 
 interface PlanetDetailPanelProps {
@@ -46,11 +51,15 @@ export default function PlanetDetailPanel({ isOpen, onClose, nodeData, isLoading
         orbit_phase: nodeData?.orbit_phase || 0,
         planet_scale: nodeData?.planet_scale || 1,
         rotation_speed: nodeData?.rotation_speed || 0.5,
+        entry_start_x: nodeData?.entry_start_x ?? -60.0,
+        entry_start_y: nodeData?.entry_start_y ?? 0.0,
+        entry_start_z: nodeData?.entry_start_z ?? null,
+        entry_speed: nodeData?.entry_speed ?? 0.4,
     });
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
     // Update local state when nodeData changes
-    useState(() => {
+    useEffect(() => {
         if (nodeData) {
             setOrbitParams({
                 orbit_shape: nodeData.orbit_shape || 'circle',
@@ -60,9 +69,13 @@ export default function PlanetDetailPanel({ isOpen, onClose, nodeData, isLoading
                 orbit_phase: nodeData.orbit_phase || 0,
                 planet_scale: nodeData.planet_scale || 1,
                 rotation_speed: nodeData.rotation_speed || 0.5,
+                entry_start_x: nodeData.entry_start_x ?? -60.0,
+                entry_start_y: nodeData.entry_start_y ?? 0.0,
+                entry_start_z: nodeData.entry_start_z ?? null,
+                entry_speed: nodeData.entry_speed ?? 0.4,
             });
         }
-    });
+    }, [nodeData]);
 
     const saveMutation = useMutation({
         mutationFn: async (params: typeof orbitParams) => {
@@ -319,6 +332,95 @@ export default function PlanetDetailPanel({ isOpen, onClose, nodeData, isLoading
                                                         onChange={(e) => setOrbitParams({ ...orbitParams, planet_scale: parseFloat(e.target.value) })}
                                                         className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                                                     />
+                                                </div>
+
+                                                {/* Entry Animation Section */}
+                                                <div className="pt-4 border-t border-white/10">
+                                                    <h4 className="text-xs font-semibold text-white/70 uppercase tracking-wide mb-3">
+                                                        Animation d'Entrée
+                                                    </h4>
+                                                    
+                                                    {/* Entry Start X */}
+                                                    <div className="mb-3">
+                                                        <div className="flex justify-between text-xs text-white/50 mb-2">
+                                                            <span>Position X de départ</span>
+                                                            <span>{orbitParams.entry_start_x.toFixed(1)}</span>
+                                                        </div>
+                                                        <input
+                                                            type="range"
+                                                            min="-100"
+                                                            max="0"
+                                                            step="1"
+                                                            value={orbitParams.entry_start_x}
+                                                            onChange={(e) => setOrbitParams({ ...orbitParams, entry_start_x: parseFloat(e.target.value) })}
+                                                            className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                                                        />
+                                                    </div>
+
+                                                    {/* Entry Start Y */}
+                                                    <div className="mb-3">
+                                                        <div className="flex justify-between text-xs text-white/50 mb-2">
+                                                            <span>Position Y de départ</span>
+                                                            <span>{orbitParams.entry_start_y.toFixed(1)}</span>
+                                                        </div>
+                                                        <input
+                                                            type="range"
+                                                            min="-20"
+                                                            max="20"
+                                                            step="0.5"
+                                                            value={orbitParams.entry_start_y}
+                                                            onChange={(e) => setOrbitParams({ ...orbitParams, entry_start_y: parseFloat(e.target.value) })}
+                                                            className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                                                        />
+                                                    </div>
+
+                                                    {/* Entry Start Z */}
+                                                    <div className="mb-3">
+                                                        <div className="flex justify-between text-xs text-white/50 mb-2">
+                                                            <span>Position Z de départ (null = utilise rayon orbite)</span>
+                                                            <span>{orbitParams.entry_start_z !== null ? orbitParams.entry_start_z.toFixed(1) : 'Auto'}</span>
+                                                        </div>
+                                                        <div className="flex gap-2 items-center">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={orbitParams.entry_start_z !== null}
+                                                                onChange={(e) => setOrbitParams({ 
+                                                                    ...orbitParams, 
+                                                                    entry_start_z: e.target.checked ? (orbitParams.entry_start_z ?? orbitParams.orbit_radius) : null 
+                                                                })}
+                                                                className="w-4 h-4 accent-indigo-500"
+                                                            />
+                                                            <span className="text-xs text-white/50">Personnaliser Z</span>
+                                                            {orbitParams.entry_start_z !== null && (
+                                                                <input
+                                                                    type="range"
+                                                                    min="0"
+                                                                    max="30"
+                                                                    step="0.5"
+                                                                    value={orbitParams.entry_start_z}
+                                                                    onChange={(e) => setOrbitParams({ ...orbitParams, entry_start_z: parseFloat(e.target.value) })}
+                                                                    className="flex-1 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-indigo-500 ml-2"
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Entry Speed */}
+                                                    <div className="mb-3">
+                                                        <div className="flex justify-between text-xs text-white/50 mb-2">
+                                                            <span>Vitesse d'entrée</span>
+                                                            <span>{orbitParams.entry_speed.toFixed(2)}</span>
+                                                        </div>
+                                                        <input
+                                                            type="range"
+                                                            min="0.1"
+                                                            max="2.0"
+                                                            step="0.05"
+                                                            value={orbitParams.entry_speed}
+                                                            onChange={(e) => setOrbitParams({ ...orbitParams, entry_speed: parseFloat(e.target.value) })}
+                                                            className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                                                        />
+                                                    </div>
                                                 </div>
 
                                                 {/* Save Button */}

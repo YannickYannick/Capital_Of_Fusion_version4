@@ -32,6 +32,7 @@ Consultez le dossier `docs/` pour:
 - Architecture des fichiers
 - Vision et objectifs du projet
 - Guide de développement
+- [Paramètres d'Animation d'Entrée](./docs/ANIMATION_ENTRY_PARAMETERS.md)
 
 ## 🛠️ Technologies
 

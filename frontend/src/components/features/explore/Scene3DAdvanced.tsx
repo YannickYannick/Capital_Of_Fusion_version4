@@ -61,12 +61,37 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
     const [isAnimatingEntry, setIsAnimatingEntry] = useState(true);
     const entryStartTime = useRef<number>(0);
     // Stores state for the fan animation: 'line' or 'orbit'
-    const planetEntryData = useRef<Map<string, { state: 'line' | 'orbit'; currentX: number; speed: number; orbitZ: number; phaseOffset: number; transitionTime: number }>>(new Map());
+    const planetEntryData = useRef<Map<string, {
+        state: 'line' | 'orbit';
+        progress: number; // 0 to 1
+        speed: number; // Units per second
+        totalDistance: number;
+        startPos: THREE.Vector3;
+        endPos: THREE.Vector3;
+        phaseOffset: number;
+        transitionTime: number;
+        // Entry start positions (stored per planet for animation)
+        startX: number;
+        startY: number;
+        startZ: number;
+        currentX: number; // Current X position during line animation
+        orbitZ: number; // Target Z position (orbit radius)
+    }>>(new Map());
 
     // Animation constants
-    const FAN_START_X = -60; // Start off-screen to the left
-    const BASE_LINE_SPEED = 0.4;
     const PLANET_STAGGER_DELAY = 200; // ms between starts
+
+    // Helper functions to get entry animation values (using global context values for now)
+    // Later, these can be overridden per node if needed
+    const getEntryStartX = (node: any) => entryStartX;
+    const getEntryStartY = (node: any) => entryStartY;
+    const getEntryStartZ = (node: any, orbitRadius: number) => {
+        if (entryStartZ !== null) {
+            return entryStartZ;
+        }
+        return orbitRadius;
+    };
+    const getEntrySpeed = (node: any) => entrySpeed;
 
     const {
         showOrbits,
@@ -86,7 +111,12 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
         // Squircle
         orbitShape: globalOrbitShape,
         orbitRoundness: globalOrbitRoundness,
-        globalShapeOverride
+        globalShapeOverride,
+        // Entry Animation (Global - applies to all planets for now)
+        entryStartX,
+        entryStartY,
+        entryStartZ,
+        entrySpeed
     } = usePlanetsOptions();
 
     // Fetch organization nodes from API
@@ -109,32 +139,43 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
             // Re-initialize animation data for all planets
             orgNodes.forEach((node: any, index: number) => {
                 if (!node.is_visible_3d) return;
-                const startX = FAN_START_X - (index * 5);
+                const entryStartX = getEntryStartX(node);
+                const entryStartY = getEntryStartY(node);
+                const orbitRadius = node.orbit_radius || 10;
+                const entryStartZ = getEntryStartZ(node, orbitRadius);
+                const entrySpeed = getEntrySpeed(node);
+                const startX = entryStartX - (index * 5);
 
                 // Reset physics positions
                 const state = sphereRegistryRef.current.get(node.id);
                 if (state) {
-                    const zPos = node.orbit_radius || 10;
-                    // Reset to start position
-                    state.currentPosition.set(FAN_START_X, 0, zPos);
-                    state.basePosition.set(FAN_START_X, 0, zPos);
+                    // Reset to start position using node-specific values
+                    state.currentPosition.set(entryStartX, entryStartY, entryStartZ);
+                    state.basePosition.set(entryStartX, entryStartY, entryStartZ);
                     state.velocity.set(0, 0, 0); // Clear velocity
 
                     // Reset mesh
                     const mesh = meshRegistryRef.current.get(node.id);
                     if (mesh) {
-                        mesh.position.set(FAN_START_X, 0, zPos);
+                        mesh.position.set(entryStartX, entryStartY, entryStartZ);
                     }
                 }
 
                 // Reset Animation Entry Data
                 planetEntryData.current.set(node.id, {
                     state: 'line',
-                    currentX: FAN_START_X,
-                    speed: BASE_LINE_SPEED + (Math.random() * 0.1),
-                    orbitZ: node.orbit_radius || 10,
+                    progress: 0,
+                    speed: entrySpeed + (Math.random() * 0.1),
+                    totalDistance: 0,
+                    startPos: new THREE.Vector3(entryStartX, entryStartY, entryStartZ),
+                    endPos: new THREE.Vector3(0, 0, orbitRadius),
                     phaseOffset: 0,
-                    transitionTime: 0
+                    transitionTime: 0,
+                    startX: entryStartX,
+                    startY: entryStartY,
+                    startZ: entryStartZ,
+                    currentX: entryStartX,
+                    orbitZ: orbitRadius
                 });
             });
         }
@@ -371,9 +412,10 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
             // Set initial position - start off-screen for entry animation if first load
             const validOrbit = orbit || { centerX: 0, centerY: 0, centerZ: 0, radius: 10, speed: 0.1, phase: 0 };
             if (entryStartTime.current === 0) {
-                // Start off-screen to the left for entry animation
-                const zPos = validOrbit.radius || 10;
-                wrapper.position.set(FAN_START_X, 0, zPos);
+                // Use global entry values (applies to all planets for now)
+                const orbitRadius = validOrbit.radius || 10;
+                const startZ = entryStartZ !== null ? entryStartZ : orbitRadius;
+                wrapper.position.set(entryStartX, entryStartY, startZ);
             } else {
                 // Normal position based on orbit
                 const squarePos = getSquarePosition(validOrbit.phase || 0, validOrbit.centerX, validOrbit.centerY, validOrbit.centerZ, validOrbit.radius);
@@ -543,9 +585,10 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
             // Set initial position - start off-screen for entry animation if first load
             const validOrbit = orbit || { centerX: 0, centerY: 0, centerZ: 0, radius: 10, speed: 0.1, phase: 0 };
             if (entryStartTime.current === 0) {
-                // Start off-screen to the left for entry animation
-                const zPos = validOrbit.radius || 10;
-                wrapper.position.set(FAN_START_X, 0, zPos);
+                // Use global entry values (applies to all planets for now)
+                const orbitRadius = validOrbit.radius || 10;
+                const startZ = entryStartZ !== null ? entryStartZ : orbitRadius;
+                wrapper.position.set(entryStartX, entryStartY, startZ);
             } else {
                 // Normal position based on orbit
                 const squarePos = getSquarePosition(validOrbit.phase || 0, validOrbit.centerX, validOrbit.centerY, validOrbit.centerZ, validOrbit.radius);
@@ -587,7 +630,8 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
             const points = [];
 
             // 1. Approaches Lines (The "Fan" trace)
-            const approachStart = new THREE.Vector3(FAN_START_X, centerY, radius); // Assuming flat plane for simplicity or use centerZ + radius
+            // Use global entry start X for orbit lines
+            const approachStart = new THREE.Vector3(entryStartX, centerY, radius); // Assuming flat plane for simplicity or use centerZ + radius
             const approachEnd = new THREE.Vector3(0, centerY, radius);
             const approachGeo = new THREE.BufferGeometry().setFromPoints([approachStart, approachEnd]);
             const approachMat = new THREE.LineBasicMaterial({
@@ -724,31 +768,42 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
             orgNodes.forEach((node: any, index: number) => {
                 if (!node.is_visible_3d) return;
 
-                const startX = FAN_START_X - (index * 5); // Stagger start positions slightly if desired, or keep same
+                const entryStartX = getEntryStartX(node);
+                const entryStartY = getEntryStartY(node);
+                const orbitRadius = node.orbit_radius || 10;
+                const entryStartZ = getEntryStartZ(node, orbitRadius);
+                const entrySpeed = getEntrySpeed(node);
+                const startX = entryStartX - (index * 5); // Stagger start positions slightly if desired, or keep same
 
                 // Initialize physics state
                 const mesh = meshRegistryRef.current.get(node.id);
                 if (mesh) {
-                    // Initial position: far left, at the correct Z depth (orbit radius)
-                    const zPos = node.orbit_radius || 10;
-                    mesh.position.set(FAN_START_X, 0, zPos);
+                    // Initial position using node-specific entry values
+                    mesh.position.set(entryStartX, entryStartY, entryStartZ);
 
                     // Update registry
                     const state = sphereRegistryRef.current.get(node.id);
                     if (state) {
-                        state.currentPosition.set(FAN_START_X, 0, zPos);
-                        state.basePosition.set(FAN_START_X, 0, zPos);
+                        state.currentPosition.set(entryStartX, entryStartY, entryStartZ);
+                        state.basePosition.set(entryStartX, entryStartY, entryStartZ);
                     }
                 }
 
                 // Initialize Animation Data
                 planetEntryData.current.set(node.id, {
                     state: 'line',
-                    currentX: FAN_START_X,
-                    speed: BASE_LINE_SPEED + (Math.random() * 0.1), // Slight speed variation
-                    orbitZ: node.orbit_radius || 10,
+                    progress: 0,
+                    speed: entrySpeed + (Math.random() * 0.1), // Slight speed variation
+                    totalDistance: 0,
+                    startPos: new THREE.Vector3(entryStartX, entryStartY, entryStartZ),
+                    endPos: new THREE.Vector3(0, 0, orbitRadius),
                     phaseOffset: 0,
-                    transitionTime: 0
+                    transitionTime: 0,
+                    startX: entryStartX,
+                    startY: entryStartY,
+                    startZ: entryStartZ,
+                    currentX: entryStartX,
+                    orbitZ: orbitRadius
                 });
             });
         }
@@ -782,8 +837,9 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
                     if (timeSinceStart >= startDelay) {
 
                         if (entryData.state === 'line') {
-                            // Move linearly along X
-                            entryData.currentX += entryData.speed;
+                            // Move linearly along X using delta time for frame-rate independent movement
+                            // Speed is now in range 10-50, so divide by 10 to get units per second (10 = 1 unit/s, 50 = 5 units/s)
+                            entryData.currentX += (entryData.speed / 10) * _dt;
 
                             // Check if reached orbit (x >= 0)
                             if (entryData.currentX >= 0) {
@@ -800,8 +856,18 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
                                 entryData.phaseOffset = targetAngle - currentCalculatedAngle;
                             }
 
-                            // Update Position (Linear Phase)
-                            state.basePosition.set(entryData.currentX, 0, effectiveRadius);
+                            // Calculate interpolation from start to end position
+                            // X goes from startX to 0
+                            // Y goes from startY to 0
+                            // Z goes from startZ to orbitZ
+                            const totalDistance = entryData.startX - 0; // Distance to travel in X
+                            const distanceTraveled = entryData.startX - entryData.currentX;
+                            const progress = Math.min(1, Math.max(0, distanceTraveled / totalDistance));
+                            const currentY = entryData.startY + (0 - entryData.startY) * progress;
+                            const currentZ = entryData.startZ + (entryData.orbitZ - entryData.startZ) * progress;
+
+                            // Update Position (Linear Phase) - use actual entry start positions
+                            state.basePosition.set(entryData.currentX, currentY, currentZ);
                             state.currentPosition.copy(state.basePosition);
                             mesh.position.copy(state.currentPosition);
 
@@ -824,8 +890,9 @@ export default function Scene3DAdvanced({ onRefsReady, onPlanetDoubleClick }: Sc
                             }
                         }
                     } else {
-                        // Waiting for turn - keep at start
-                        mesh.position.set(FAN_START_X, 0, effectiveRadius);
+                        // Waiting for turn - keep at start using global entry values
+                        const startZ = entryStartZ !== null ? entryStartZ : effectiveRadius;
+                        mesh.position.set(entryStartX, entryStartY, startZ);
                     }
                 } else {
                     // --- NORMAL PHYSICS (Entry Complete or Legacy) ---

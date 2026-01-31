@@ -73,7 +73,16 @@ export default function ExplorePage() {
         orbitRoundness,
         setOrbitRoundness,
         globalShapeOverride,
-        setGlobalShapeOverride
+        setGlobalShapeOverride,
+        // Entry Animation
+        entryStartX,
+        setEntryStartX,
+        entryStartY,
+        setEntryStartY,
+        entryStartZ,
+        setEntryStartZ,
+        entrySpeed,
+        setEntrySpeed
     } = usePlanetsOptions();
 
 
@@ -371,6 +380,85 @@ export default function ExplorePage() {
                             step="0.005"
                             value={returnForce}
                             onChange={(e) => setReturnForce(Number(e.target.value))}
+                            className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer hover:bg-white/30 accent-white"
+                        />
+                    </div>
+                </div>
+
+                <div className="pt-2 border-t border-white/10 space-y-3">
+                    <p className="text-white/50 text-xs font-medium uppercase tracking-widest">Animation d'Entrée</p>
+
+                    <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-white/70">
+                            <span>Position X de départ</span>
+                            <span>{entryStartX.toFixed(1)}</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="-100"
+                            max="0"
+                            step="1"
+                            value={entryStartX}
+                            onChange={(e) => setEntryStartX(Number(e.target.value))}
+                            className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer hover:bg-white/30 accent-white"
+                        />
+                    </div>
+
+                    <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-white/70">
+                            <span>Position Y de départ</span>
+                            <span>{entryStartY.toFixed(1)}</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="-20"
+                            max="20"
+                            step="0.5"
+                            value={entryStartY}
+                            onChange={(e) => setEntryStartY(Number(e.target.value))}
+                            className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer hover:bg-white/30 accent-white"
+                        />
+                    </div>
+
+                    <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-white/70">
+                            <span>Position Z de départ</span>
+                            <span>{entryStartZ !== null ? entryStartZ.toFixed(1) : 'Auto'}</span>
+                        </div>
+                        <div className="flex gap-2 items-center">
+                            <input
+                                type="checkbox"
+                                checked={entryStartZ !== null}
+                                onChange={(e) => setEntryStartZ(e.target.checked ? (entryStartZ ?? 10) : null)}
+                                className="w-4 h-4 accent-white"
+                            />
+                            <span className="text-xs text-white/50">Personnaliser Z</span>
+                            {entryStartZ !== null && (
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="30"
+                                    step="0.5"
+                                    value={entryStartZ}
+                                    onChange={(e) => setEntryStartZ(Number(e.target.value))}
+                                    className="flex-1 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer hover:bg-white/30 accent-white ml-2"
+                                />
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-white/70">
+                            <span>Vitesse d'entrée</span>
+                            <span>{entrySpeed.toFixed(0)}</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="10"
+                            max="50"
+                            step="1"
+                            value={entrySpeed}
+                            onChange={(e) => setEntrySpeed(Number(e.target.value))}
                             className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer hover:bg-white/30 accent-white"
                         />
                     </div>

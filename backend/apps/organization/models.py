@@ -106,6 +106,26 @@ class OrganizationNode(BaseModel):
         default=0.6,
         help_text="Pour Squircle : 0 = carré, 1 = cercle"
     )
+    
+    # Entry Animation Configuration
+    entry_start_x = models.FloatField(
+        default=-60.0,
+        help_text="Position de départ X (ligne d'entrée)"
+    )
+    entry_start_y = models.FloatField(
+        default=0.0,
+        help_text="Position de départ Y (ligne d'entrée)"
+    )
+    entry_start_z = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Position de départ Z (si null, utilise orbit_radius)"
+    )
+    entry_speed = models.FloatField(
+        default=0.4,
+        help_text="Vitesse de la trajectoire d'entrée"
+    )
+    
     is_visible_3d = models.BooleanField(
         default=True,
         help_text="Afficher cette planète dans la scène 3D"

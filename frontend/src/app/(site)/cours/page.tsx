@@ -39,20 +39,22 @@ export default function CoursesPage() {
                         <motion.div
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="flex items-center gap-2 text-blue-400 text-xs font-black uppercase tracking-[0.3em] mb-4"
                         >
-                            <Sparkles className="w-4 h-4" />
-                            Catalogue des cours
+                            <div className="flex items-center gap-2 text-blue-400 text-xs font-black uppercase tracking-[0.3em] mb-4">
+                                <Sparkles className="w-4 h-4" />
+                                Catalogue des cours
+                            </div>
                         </motion.div>
-                        <motion.h1
+                        <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 }}
-                            className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter"
                         >
-                            ELEVE TON <br />
-                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-emerald-400">STYLE</span>
-                        </motion.h1>
+                            <h1 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter">
+                                ELEVE TON <br />
+                                <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-emerald-400">STYLE</span>
+                            </h1>
+                        </motion.div>
                     </div>
 
                     <div className="flex flex-wrap gap-3">

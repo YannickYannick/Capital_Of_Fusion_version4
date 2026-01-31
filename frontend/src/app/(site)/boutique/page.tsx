@@ -28,20 +28,22 @@ export default function ShopPage() {
                         <motion.div
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="flex items-center gap-2 text-blue-400 text-xs font-black uppercase tracking-[0.3em] mb-4"
                         >
-                            <Sparkles className="w-4 h-4" />
-                            Official Merch
+                            <div className="flex items-center gap-2 text-blue-400 text-xs font-black uppercase tracking-[0.3em] mb-4">
+                                <Sparkles className="w-4 h-4" />
+                                Official Merch
+                            </div>
                         </motion.div>
-                        <motion.h1
+                        <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 }}
-                            className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter"
                         >
-                            STYLEZ VOTRE <br />
-                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-indigo-400">PASSION</span>
-                        </motion.h1>
+                            <h1 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter">
+                                STYLEZ VOTRE <br />
+                                <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-indigo-400">PASSION</span>
+                            </h1>
+                        </motion.div>
                     </div>
 
                     <button className="relative p-6 rounded-3xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all group overflow-hidden">
@@ -68,8 +70,8 @@ export default function ShopPage() {
                                 initial={{ opacity: 0, y: 20 }}
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
-                                className="group relative"
                             >
+                                <div className="group relative">
                                 <div className="aspect-[4/5] relative rounded-3xl overflow-hidden bg-white/5 border border-white/10 mb-4 shadow-2xl">
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 opacity-60" />
                                     {product.image ? (
@@ -105,6 +107,7 @@ export default function ShopPage() {
                                     <p className="text-blue-400 font-black text-lg tracking-tighter">
                                         {product.price}€
                                     </p>
+                                </div>
                                 </div>
                             </motion.div>
                         ))}
