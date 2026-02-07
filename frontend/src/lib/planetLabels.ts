@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // Base scale for labels (used for distance-based scaling)
-const BASE_LABEL_SCALE = { width: 4, height: 1 };
+const BASE_LABEL_SCALE = { width: 2, height: 0.5 };
 // Reference distance at which the label has its base size
 const REFERENCE_DISTANCE = 15;
 
